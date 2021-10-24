@@ -11,7 +11,7 @@ import OpenGL.GLUT as glut
 sys.path.append('../lib/')
 import utils as ut
 from ctypes import c_void_p
-
+import pywavefront
 
 
 ## Window setup
@@ -279,7 +279,18 @@ def idle():
 
 ## Init data.
 def loadObject():
-    return cube 
+    scene = pywavefront.Wavefront("cube.obj", collect_faces=True)
+    object_ = []
+    for mesh in scene.mesh_list:
+        for face in mesh.faces:
+            for vertex_i in face:
+                x, y, z = scene.vertices[vertex_i]
+                object_.append(x)
+                object_.append(y)
+                object_.append(z)
+    object_np = np.array(object_, dtype='float32')
+    
+    return object_np 
 
 def initData():
 
@@ -288,6 +299,7 @@ def initData():
     global VBO
 
     # Set vertices.
+   
     vertices = loadObject() 
     
     # Vertex array.
@@ -300,10 +312,10 @@ def initData():
     gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
     
     # Set attributes.
-    gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, None)
+    gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 3*vertices.itemsize, None)
     gl.glEnableVertexAttribArray(0)
-    gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, c_void_p(3*vertices.itemsize))
-    gl.glEnableVertexAttribArray(1)
+    #gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, c_void_p(3*vertices.itemsize))
+    #gl.glEnableVertexAttribArray(1)
     
     gl.glEnable(gl.GL_DEPTH_TEST)
     # Unbind Vertex Array Object.
