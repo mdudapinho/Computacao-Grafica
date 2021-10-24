@@ -1,6 +1,6 @@
 ##########################################################
-#########TRABALHO 1 - MESH
-#########MARIA EDUARDA REBELO PINHO
+################### TRABALHO 1 - MESH ####################
+############### MARIA EDUARDA REBELO PINHO ###############
 ##########################################################
 
 import sys
@@ -87,6 +87,19 @@ cube = np.array([
      0.25, -0.25,  0.25, 1.0, 0.0, 0.0
 ], dtype='float32') 
 
+colors_ = np.array([
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 1.0,
+    0.0, 1.0, 0.0,
+    0.0, 1.0, 1.0,
+    1.0, 0.0, 0.0,
+    1.0, 0.0, 1.0,
+    1.0, 1.0, 0.0,
+    1.0, 1.0, 1.0
+], dtype='float32') 
+
+USE_COLORS = True
+
 vertices = np.array([], dtype='float32')
 
 ## Vertex shader.
@@ -147,11 +160,11 @@ def display():
     loc = gl.glGetUniformLocation(program, "transform")
     # Send matrix to shader.
     gl.glUniformMatrix4fv(loc, 1, gl.GL_FALSE, M.transpose())
-
+    
     if(visualizacao == "FACES"):
-        gl.glDrawArrays(gl.GL_TRIANGLES, 0, 12*6)
+        gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(vertices))
     elif (visualizacao == "WIREFRAME"):
-        gl.glDrawArrays(gl.GL_LINE_STRIP, 0, 12*6)
+        gl.glDrawArrays(gl.GL_LINE_STRIP, 0, len(vertices))
     glut.glutSwapBuffers()
 
 
@@ -162,7 +175,6 @@ def reshape(width,height):
     win_height = height
     gl.glViewport(0, 0, width, height)
     glut.glutPostRedisplay()
-
 
 def printInformations():
     print("Transformacao selecionada: ", transformacao)
@@ -182,8 +194,8 @@ def printInformations():
         print("escala z: ", scale_z)
 
 ## Keyboard function.
-def hasTransformion(key):
-    if(key == b'w' or key == b'a' or key == b's' or key == b'd' or key == b'f' or key == b'g' or key == b'h'):
+def hasTransformation(key):
+    if(key == b'w' or key == b'a' or key == b'd' or key == glut.GLUT_KEY_UP or key == glut.GLUT_KEY_DOWN or key == glut.GLUT_KEY_RIGHT or key == glut.GLUT_KEY_LEFT):
         return true
     return false
 
@@ -191,56 +203,56 @@ def aplyTransfromation(key):
     global translation_x, translation_y, translation_z, angle_x, angle_y, angle_z, scale_x, scale_y, scale_z
     
     if(key == b'w'):
-        translation_x = 0
-        translation_y = 0
-        translation_z = 0
+        translation_x = 0.0
+        translation_y = 0.0
+        translation_z = 0.0
         angle_x = 0
         angle_y = 0
         angle_z = 0
-        scale_x = 1
-        scale_y = 1
-        scale_z = 1
+        scale_x = 1.0
+        scale_y = 1.0
+        scale_z = 1.0
         
     if(transformacao == "TRANSLACAO"):
-        if(key == b's'): #seta cima
+        if(key == glut.GLUT_KEY_UP): #y+
             translation_y = translation_y + translation_inc
-        elif(key == b'f'): #seta baixo
+        elif(key == glut.GLUT_KEY_DOWN): #y-
             translation_y = translation_y - translation_inc
-        elif(key == b'g'): #seta direita
+        elif(key == glut.GLUT_KEY_RIGHT): #x+
             translation_x = translation_x + translation_inc
-        elif(key == b'h'): #seta esquerda
+        elif(key == glut.GLUT_KEY_LEFT): #x-
             translation_x = translation_x - translation_inc
-        elif(key == b'a'):
+        elif(key == b'a'): #z+
             translation_z = translation_z + translation_inc
-        elif(key == b'd'):
+        elif(key == b'd'): # z-
             translation_z = translation_z - translation_inc
             
     elif(transformacao == "ROTACAO"):
-        if(key == b's'): #seta cima
+        if(key == glut.GLUT_KEY_UP): #x+
             angle_x = angle_x + angle_inc
-        elif(key == b'f'): #seta baixo
+        elif(key == glut.GLUT_KEY_DOWN): #x-
             angle_x = angle_x - angle_inc
-        elif(key == b'g'): #seta direita
+        elif(key == glut.GLUT_KEY_RIGHT): #y+
             angle_y = angle_y + angle_inc
-        elif(key == b'h'): #seta esquerda
+        elif(key == glut.GLUT_KEY_LEFT): #y-
             angle_y = angle_y - angle_inc
-        elif(key == b'a'):
+        elif(key == b'a'): #z+
             angle_z = angle_z + angle_inc
-        elif(key == b'd'):
+        elif(key == b'd'): #z-
             angle_z = angle_z - angle_inc
     
     elif(transformacao == "ESCALA"):
-        if(key == b's'): #seta cima
+        if(key == glut.GLUT_KEY_UP): #y>
             scale_y = 1.5
-        elif(key == b'f'): #seta baixo
+        elif(key == glut.GLUT_KEY_DOWN): #y<
             scale_y = 0.5
-        elif(key == b'g'): #seta direita
+        elif(key == glut.GLUT_KEY_RIGHT): #x>
             scale_x = 1.5
-        elif(key == b'h'): #seta esquerda
+        elif(key == glut.GLUT_KEY_LEFT): #x<
             scale_x = 0.5
-        elif(key == b'a'):
+        elif(key == b'a'): #z>
             scale_z = 1.5
-        elif(key == b'd'):
+        elif(key == b'd'): #z<
             scale_z = 0.0
             
 def keyboard(key, x, y):
@@ -251,6 +263,8 @@ def keyboard(key, x, y):
     
     if key == b'\x1b' or key == b'q':
         glut.glutLeaveMainLoop()
+    
+    print("key:", key)
     
     if key == b'r':
         transformacao = "ROTACAO"
@@ -266,18 +280,28 @@ def keyboard(key, x, y):
         else:
             visualizacao = "FACES"
         
-    if(hasTransformion):
+    if(hasTransformation):
         aplyTransfromation(key)
     
     printInformations()
     glut.glutPostRedisplay()
 
+
 ## Idle function.
 def idle():
     glut.glutPostRedisplay()
 
-
 ## Init data.
+def loadColors(tam):
+    object_ = []
+    global colors_
+    for i in range(int(tam/3)):
+        object_.append(colors_[(i*3)%len(colors_)])
+        object_.append(colors_[(i*3+1)%len(colors_)])
+        object_.append(colors_[(i*3+2)%len(colors_)])
+
+    return object_ 
+    
 def loadObject():
     scene = pywavefront.Wavefront("cube.obj", collect_faces=True)
     object_ = []
@@ -288,7 +312,23 @@ def loadObject():
                 object_.append(x)
                 object_.append(y)
                 object_.append(z)
-    object_np = np.array(object_, dtype='float32')
+    
+    if(not USE_COLORS):
+        return np.array(object_, dtype='float32')  
+    
+    colors = loadColors(len(object_))
+    
+    obj_colored = []
+    
+    for i in range (int(len(object_)/3)):
+        obj_colored.append(object_[i*3])
+        obj_colored.append(object_[i*3+1])
+        obj_colored.append(object_[i*3+2])
+        obj_colored.append(colors[i*3])
+        obj_colored.append(colors[i*3+1])
+        obj_colored.append(colors[i*3+2])
+        
+    object_np = np.array(obj_colored, dtype='float32')
     
     return object_np 
 
@@ -297,9 +337,9 @@ def initData():
     # Uses vertex arrays.
     global VAO
     global VBO
+    global vertices
 
     # Set vertices.
-   
     vertices = loadObject() 
     
     # Vertex array.
@@ -312,10 +352,14 @@ def initData():
     gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
     
     # Set attributes.
-    gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 3*vertices.itemsize, None)
-    gl.glEnableVertexAttribArray(0)
-    #gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, c_void_p(3*vertices.itemsize))
-    #gl.glEnableVertexAttribArray(1)
+    if(not USE_COLORS):
+        gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 3*vertices.itemsize, None)
+        gl.glEnableVertexAttribArray(0)
+    else:
+        gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, None)
+        gl.glEnableVertexAttribArray(0)
+        gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, c_void_p(6*vertices.itemsize))
+        gl.glEnableVertexAttribArray(1)
     
     gl.glEnable(gl.GL_DEPTH_TEST)
     # Unbind Vertex Array Object.
@@ -347,6 +391,7 @@ def main():
     glut.glutReshapeFunc(reshape)
     glut.glutDisplayFunc(display)
     glut.glutKeyboardFunc(keyboard)
+    glut.glutSpecialFunc(keyboard)
     glut.glutIdleFunc(idle);
     print("here")
 
