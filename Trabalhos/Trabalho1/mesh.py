@@ -14,6 +14,8 @@ from ctypes import c_void_p
 import pywavefront
 
 
+USE_COLORS = True
+
 ## Window setup
 win_width  = 800
 win_height = 600
@@ -47,46 +49,6 @@ transformacao = 0 #ROTACAO, TRANSLACAO, ESCALA
 visualizacao = "FACES" #FACES, WIREFRAME
 
 
-cube = np.array([
-    # coordinate
-    -0.25, -0.25,  0.25, 1.0, 0.0, 0.0,
-     0.25, -0.25,  0.25, 0.0, 0.0, 0.0,
-     0.25,  0.25,  0.25, 0.0, 0.0, 0.0,
-    -0.25, -0.25,  0.25, 0.0, 0.0, 0.0,
-     0.25,  0.25,  0.25, 1.0, 0.0, 1.0,
-    -0.25,  0.25,  0.25, 1.0, 0.0, 1.0,
-     0.25, -0.25,  0.25, 0.0, 0.0, 1.0,
-     0.25, -0.25, -0.25, 0.0, 0.0, 0.0,
-     0.25,  0.25, -0.25, 0.0, 0.0, 0.0,
-     0.25, -0.25,  0.25, 0.0, 0.0, 0.0,
-     0.25,  0.25, -0.25, 0.0, 0.0, 1.0,
-     0.25,  0.25,  0.25, 0.0, 0.0, 0.0,
-     0.25, -0.25, -0.25, 0.0, 0.0, 0.0,
-    -0.25, -0.25, -0.25, 0.0, 0.0, 0.0,
-    -0.25,  0.25, -0.25, 0.0, 0.0, 0.0,
-     0.25, -0.25, -0.25, 0.0, 0.0, 0.0,
-    -0.25,  0.25, -0.25, 1.0, 0.0, 0.0,
-     0.25,  0.25, -0.25, 1.0, 0.0, 0.0,
-    -0.25, -0.25, -0.25, 1.0, 0.0, 0.0,
-    -0.25, -0.25,  0.25, 1.0, 0.0, 0.0,
-    -0.25,  0.25,  0.25, 1.0, 0.0, 0.0,
-    -0.25, -0.25, -0.25, 1.0, 0.0, 0.0,
-    -0.25,  0.25,  0.25, 0.0, 0.0, 0.0,
-    -0.25,  0.25, -0.25, 0.0, 0.0, 0.0,
-    -0.25,  0.25,  0.25, 0.0, 0.0, 0.0,
-     0.25,  0.25,  0.25, 0.0, 0.0, 0.0,
-     0.25,  0.25, -0.25, 0.0, 0.0, 0.0,
-    -0.25,  0.25,  0.25, 0.0, 0.0, 1.0,
-     0.25,  0.25, -0.25, 1.0, 0.0, 1.0,
-    -0.25,  0.25, -0.25, 1.0, 0.0, 1.0,
-    -0.25, -0.25,  0.25, 1.0, 0.0, 1.0,
-    -0.25, -0.25, -0.25, 1.0, 0.0, 1.0,
-     0.25, -0.25,  0.25, 1.0, 0.0, 1.0,
-    -0.25, -0.25, -0.25, 1.0, 0.0, 0.0,
-     0.25, -0.25, -0.25, 1.0, 0.0, 0.0,
-     0.25, -0.25,  0.25, 1.0, 0.0, 0.0
-], dtype='float32') 
-
 colors_ = np.array([
     0.0, 0.0, 0.0,
     0.0, 0.0, 1.0,
@@ -98,7 +60,6 @@ colors_ = np.array([
     1.0, 1.0, 1.0
 ], dtype='float32') 
 
-USE_COLORS = True
 
 vertices = np.array([], dtype='float32')
 
@@ -166,7 +127,6 @@ def display():
     elif (visualizacao == "WIREFRAME"):
         gl.glDrawArrays(gl.GL_LINE_STRIP, 0, len(vertices))
     glut.glutSwapBuffers()
-
 
 ## Reshape function.
 def reshape(width,height):
@@ -286,7 +246,6 @@ def keyboard(key, x, y):
     printInformations()
     glut.glutPostRedisplay()
 
-
 ## Idle function.
 def idle():
     glut.glutPostRedisplay()
@@ -302,8 +261,9 @@ def loadColors(tam):
 
     return object_ 
     
-def loadObject():
-    scene = pywavefront.Wavefront("cube.obj", collect_faces=True)
+def loadObject(object_file):
+    print("loading ", object_file)
+    scene = pywavefront.Wavefront(object_file, collect_faces=True)
     object_ = []
     for mesh in scene.mesh_list:
         for face in mesh.faces:
@@ -329,10 +289,10 @@ def loadObject():
         obj_colored.append(colors[i*3+2])
         
     object_np = np.array(obj_colored, dtype='float32')
-    
+
     return object_np 
 
-def initData():
+def initData(object_file):
 
     # Uses vertex arrays.
     global VAO
@@ -340,7 +300,7 @@ def initData():
     global vertices
 
     # Set vertices.
-    vertices = loadObject() 
+    vertices = loadObject(object_file) 
     
     # Vertex array.
     VAO = gl.glGenVertexArrays(1)
@@ -382,8 +342,10 @@ def main():
     glut.glutInitWindowSize(win_width,win_height)
     glut.glutCreateWindow('MESH')
 
-    # Init vertex data for the triangle.
-    initData()
+    # Init vertex data for the object.
+    object_file = sys.argv[1]
+    print("object_file: ", object_file)
+    initData(object_file)
     
     # Create shaders.
     initShaders()
