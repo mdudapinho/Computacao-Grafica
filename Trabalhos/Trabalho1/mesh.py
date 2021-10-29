@@ -14,7 +14,7 @@ from ctypes import c_void_p
 import pywavefront
 
 
-USE_COLORS = True
+USE_COLORS = False
 
 ## Window setup
 win_width  = 800
