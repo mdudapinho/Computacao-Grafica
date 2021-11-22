@@ -14,7 +14,7 @@ from ctypes import c_void_p
 import pywavefront
 
 
-USE_COLORS = False
+USE_COLORS = True
 
 ## Window setup
 win_width  = 800
@@ -37,6 +37,7 @@ translation_inc = 0.1
 scale_x = 1.0
 scale_y = 1.0
 scale_z = 1.0
+scale_inc = 0.1
 
 ## Rotation 
 angle_x = 0.0
@@ -50,16 +51,31 @@ visualizacao = "FACES" #FACES, WIREFRAME
 
 
 colors_ = np.array([
+    0.0, 0.0, 0.0, 
+    0.0, 0.0, 0.0,
     0.0, 0.0, 0.0,
     0.0, 0.0, 1.0,
+    0.0, 0.0, 1.0,
+    0.0, 0.0, 1.0,
+    0.0, 1.0, 0.0,
+    0.0, 1.0, 0.0,
     0.0, 1.0, 0.0,
     0.0, 1.0, 1.0,
+    0.0, 1.0, 1.0,
+    0.0, 1.0, 1.0,
+    1.0, 0.0, 0.0,
+    1.0, 0.0, 0.0,
     1.0, 0.0, 0.0,
     1.0, 0.0, 1.0,
+    1.0, 0.0, 1.0,
+    1.0, 0.0, 1.0,
     1.0, 1.0, 0.0,
+    1.0, 1.0, 0.0,
+    1.0, 1.0, 0.0,
+    1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0,
     1.0, 1.0, 1.0
 ], dtype='float32') 
-
 
 vertices = np.array([], dtype='float32')
 
@@ -123,9 +139,11 @@ def display():
     gl.glUniformMatrix4fv(loc, 1, gl.GL_FALSE, M.transpose())
     
     if(visualizacao == "FACES"):
-        gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(vertices))
+        gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
     elif (visualizacao == "WIREFRAME"):
-        gl.glDrawArrays(gl.GL_LINE_STRIP, 0, len(vertices))
+        gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+        
+    gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(vertices))
     glut.glutSwapBuffers()
 
 ## Reshape function.
@@ -203,23 +221,21 @@ def aplyTransfromation(key):
     
     elif(transformacao == "ESCALA"):
         if(key == glut.GLUT_KEY_UP): #y>
-            scale_y = 1.5
+            scale_y = scale_y + scale_inc
         elif(key == glut.GLUT_KEY_DOWN): #y<
-            scale_y = 0.5
+            scale_y = scale_y - scale_inc
         elif(key == glut.GLUT_KEY_RIGHT): #x>
-            scale_x = 1.5
+            scale_x = scale_x + scale_inc
         elif(key == glut.GLUT_KEY_LEFT): #x<
-            scale_x = 0.5
+            scale_x = scale_x - scale_inc
         elif(key == b'a'): #z>
-            scale_z = 1.5
+            scale_z = scale_z + scale_inc
         elif(key == b'd'): #z<
-            scale_z = 0.0
+            scale_z = scale_z - scale_inc
             
 def keyboard(key, x, y):
 
-    global type_primitive
-    global transformacao
-    global visualizacao
+    global type_primitive, transformacao, visualizacao
     
     if key == b'\x1b' or key == b'q':
         glut.glutLeaveMainLoop()
@@ -246,10 +262,6 @@ def keyboard(key, x, y):
     printInformations()
     glut.glutPostRedisplay()
 
-## Idle function.
-def idle():
-    glut.glutPostRedisplay()
-
 ## Init data.
 def loadColors(tam):
     object_ = []
@@ -258,13 +270,21 @@ def loadColors(tam):
         object_.append(colors_[(i*3)%len(colors_)])
         object_.append(colors_[(i*3+1)%len(colors_)])
         object_.append(colors_[(i*3+2)%len(colors_)])
-
+        
     return object_ 
+    
+def normalizeObj(obj, max_coord):
+    for i in range(len(obj)):
+        obj[i] = obj[i] / max_coord
+    return obj
+
+    
     
 def loadObject(object_file):
     print("loading ", object_file)
     scene = pywavefront.Wavefront(object_file, collect_faces=True)
     object_ = []
+    max_coord = 0
     for mesh in scene.mesh_list:
         for face in mesh.faces:
             for vertex_i in face:
@@ -272,12 +292,14 @@ def loadObject(object_file):
                 object_.append(x)
                 object_.append(y)
                 object_.append(z)
+                max_coord = max(max_coord, x, y, z)
+    
+    object_ = normalizeObj(object_, max_coord)
     
     if(not USE_COLORS):
         return np.array(object_, dtype='float32')  
     
     colors = loadColors(len(object_))
-    
     obj_colored = []
     
     for i in range (int(len(object_)/3)):
@@ -295,9 +317,7 @@ def loadObject(object_file):
 def initData(object_file):
 
     # Uses vertex arrays.
-    global VAO
-    global VBO
-    global vertices
+    global VAO, VBO, vertices
 
     # Set vertices.
     vertices = loadObject(object_file) 
@@ -318,7 +338,7 @@ def initData(object_file):
     else:
         gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, None)
         gl.glEnableVertexAttribArray(0)
-        gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, c_void_p(6*vertices.itemsize))
+        gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, c_void_p(3*vertices.itemsize))
         gl.glEnableVertexAttribArray(1)
     
     gl.glEnable(gl.GL_DEPTH_TEST)
@@ -327,17 +347,15 @@ def initData(object_file):
 
 ## Create program (shaders).
 def initShaders():
-
     global program
     program = ut.createShaderProgram(vertex_code, fragment_code)
-
 
 ## Main function.
 def main():
 
     glut.glutInit()
-    glut.glutInitContextVersion(3, 3);
-    glut.glutInitContextProfile(glut.GLUT_CORE_PROFILE);
+    glut.glutInitContextVersion(3, 3)
+    glut.glutInitContextProfile(glut.GLUT_CORE_PROFILE)
     glut.glutInitDisplayMode(glut.GLUT_DOUBLE | glut.GLUT_RGBA | glut.GLUT_DEPTH)
     glut.glutInitWindowSize(win_width,win_height)
     glut.glutCreateWindow('MESH')
@@ -354,8 +372,6 @@ def main():
     glut.glutDisplayFunc(display)
     glut.glutKeyboardFunc(keyboard)
     glut.glutSpecialFunc(keyboard)
-    glut.glutIdleFunc(idle);
-    print("here")
 
     glut.glutMainLoop()
 
