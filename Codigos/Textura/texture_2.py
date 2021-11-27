@@ -16,7 +16,7 @@ import pywavefront
 import random
 
 
-USE_COLORS = False
+USE_COLORS = True
 
 texture_file = None
 texture = None
@@ -55,34 +55,8 @@ angle_inc = 1.0
 ## Modes
 transformacao = 0 #ROTACAO, TRANSLACAO, ESCALA
 visualizacao = "FACES" #FACES, WIREFRAME
+visualizacao_textura = 0.0 #(False) Iluminacao, (true) Iluminacao+Textura
 
-
-colors_ = np.array([
-    0.0, 0.0, 0.0, 
-    0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0,
-    0.0, 0.0, 1.0,
-    0.0, 0.0, 1.0,
-    0.0, 0.0, 1.0,
-    0.0, 1.0, 0.0,
-    0.0, 1.0, 0.0,
-    0.0, 1.0, 0.0,
-    0.0, 1.0, 1.0,
-    0.0, 1.0, 1.0,
-    0.0, 1.0, 1.0,
-    1.0, 0.0, 0.0,
-    1.0, 0.0, 0.0,
-    1.0, 0.0, 0.0,
-    1.0, 0.0, 1.0,
-    1.0, 0.0, 1.0,
-    1.0, 0.0, 1.0,
-    1.0, 1.0, 0.0,
-    1.0, 1.0, 0.0,
-    1.0, 1.0, 0.0,
-    1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0
-], dtype='float32') 
 
 vertices = np.array([], dtype='float32')
 
@@ -105,7 +79,6 @@ void main()
 {
     gl_Position = projection * view * model * vec4(position, 1.0);
     vNormal = mat3(transpose(inverse(model))) * normal;
-    // vNormal = normal;
     fragPosition = vec3(model * vec4(position, 1.0));
     aTexture = texture;
 }
@@ -121,6 +94,7 @@ in vec2 aTexture;
 
 out vec4 fragColor;
 
+uniform int visualizacao_textura;
 uniform vec3 objectColor;
 uniform vec3 lightColor;
 uniform vec3 lightPosition;
@@ -148,10 +122,11 @@ void main()
 
     vec3 textureColor = texture(ourTexture, aTexture).xyz;
 
-    vec3 light = (ambient + diffuse + specular) * textureColor;
+    vec3 light = (ambient + diffuse + specular) * objectColor;
+    if(visualizacao_textura == 1){
+        light = (ambient + diffuse + specular) * textureColor;
+    }
     fragColor = vec4(light, 1.0);
-
-    // fragColor = texture(ourTexture, aTexture);
 }
 """
 
@@ -174,7 +149,6 @@ def read_texture():
     gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGB, img.size[0], img.size[1], 0,
                     format, gl.GL_UNSIGNED_BYTE, img_data)
     gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
-
 
 ## Display function
 def display():
@@ -202,7 +176,7 @@ def display():
     M = np.matmul(S, M)
     M = np.matmul(T,M)
     
-    # Retrieve location of tranform variable in shader.
+    # Retrieve locatiovisualizacao_texturan of tranform variable in shader.
     loc = gl.glGetUniformLocation(program, "model")
     # Send matrix to shader.
     gl.glUniformMatrix4fv(loc, 1, gl.GL_FALSE, M.transpose())
@@ -212,7 +186,7 @@ def display():
     gl.glUniformMatrix4fv(loc, 1, gl.GL_FALSE, view.transpose())
     
     projection = ut.matPerspective(np.radians(45.0), win_width/win_height, 0.1, 100.0)
-    loc = gl.glGetUniformLocation(program, "projection");
+    loc = gl.glGetUniformLocation(program, "projection")
     gl.glUniformMatrix4fv(loc, 1, gl.GL_FALSE, projection.transpose())
 
     # Object color.
@@ -227,9 +201,10 @@ def display():
     # Camera position.
     loc = gl.glGetUniformLocation(program, "cameraPosition")
     gl.glUniform3f(loc, 0.0, 0.0, 0.0)
+    # visualizacao_textura.
+    loc = gl.glGetUniformLocation(program, "visualizacao_textura")
+    gl.glUniform1i(loc, np.int32(visualizacao_textura))
 
-
-    
     #if(visualizacao == "FACES"):
         #gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
     #elif (visualizacao == "WIREFRAME"):
@@ -249,6 +224,10 @@ def reshape(width,height):
 def printInformation():
     print("Transformacao selecionada: ", transformacao)
     print("Visualizacao selecionada: ", visualizacao)
+    if(visualizacao_textura):
+        print("Iluminacao selecionada: Textura")
+    else:
+        print("Iluminacao selecionada: Cor")
 
     if(transformacao == "TRANSLACAO"):
         print("translacao x: ", translation_x)
@@ -265,12 +244,12 @@ def printInformation():
 
 ## Keyboard function.
 def hasTransformation(key):
-    if(key == b'w' or key == b'a' or key == b'd' or key == glut.GLUT_KEY_UP or key == glut.GLUT_KEY_DOWN or key == glut.GLUT_KEY_RIGHT or key == glut.GLUT_KEY_LEFT):
+    if(key == b'w' or key == b'a' or key == b'd' or key == glut.GLUT_KEY_UP or key == glut.GLUT_KEY_DOWN or key == glut.GLUT_KEY_RIGHT or key == glut.GLUT_KEY_LEFT or key == b'z' or key == b'x'):
         return true
     return false
 
 def aplyTransfromation(key):
-    global translation_x, translation_y, translation_z, angle_x, angle_y, angle_z, scale_x, scale_y, scale_z
+    global translation_x, translation_y, translation_z, angle_x, angle_y, angle_z, scale_x, scale_y, scale_z, visualizacao_textura
     
     if(key == b'w'):
         translation_x = 0.0
@@ -283,7 +262,7 @@ def aplyTransfromation(key):
         scale_y = 1.0
         scale_z = 1.0
         
-    if(transformacao == "TRANSLACAO"):
+    elif(transformacao == "TRANSLACAO"):
         if(key == glut.GLUT_KEY_UP): #y+
             translation_y = translation_y + translation_inc
         elif(key == glut.GLUT_KEY_DOWN): #y-
@@ -324,7 +303,12 @@ def aplyTransfromation(key):
             scale_z = scale_z + scale_inc
         elif(key == b'd'): #z<
             scale_z = scale_z - scale_inc
-            
+         
+    if(key == b'z'): #Object color
+        visualizacao_textura = 0
+    elif(key == b'x'): #Object texture
+        visualizacao_textura = 1
+      
 def keyboard(key, x, y):
 
     global type_primitive, transformacao, visualizacao
@@ -355,16 +339,6 @@ def keyboard(key, x, y):
     glut.glutPostRedisplay()
 
 ## Init data.
-def loadColors(tam):
-    object_ = []
-    global colors_
-    for i in range(int(tam/3)):
-        object_.append(colors_[(i*3)%len(colors_)])
-        object_.append(colors_[(i*3+1)%len(colors_)])
-        object_.append(colors_[(i*3+2)%len(colors_)])
-       
-    return object_ 
-    
 def normalizeObj(obj, max_coord):
     for i in range(int(len(obj)/8)):
         obj[i*8] = obj[i*8] / max_coord
@@ -381,9 +355,9 @@ def loadObject(object_file, texture_file):
         for face in mesh.faces:
             for vertex_i in face:
                 x, y, z = scene.vertices[vertex_i]
-                object_.append(x/3)
-                object_.append(y/3)
-                object_.append(z/3)
+                object_.append(x)
+                object_.append(y)
+                object_.append(z)
                  #normal
                 object_.append(random.random())
                 object_.append(random.random())
@@ -393,29 +367,34 @@ def loadObject(object_file, texture_file):
                 object_.append(random.random())
                 max_coord = max(max_coord, x, y, z)
     
-    #object_ = normalizeObj(object_, int(max_coord))
+    object_ = normalizeObj(object_, int(max_coord))
     
-    if(not USE_COLORS):
-        return np.array(object_, dtype='float32')  
+    #if(not USE_COLORS):
+    return np.array(object_, dtype='float32')  
     
     colors = loadColors(len(object_))
-    obj_colored = []
+    
+    final_obj = []
     ind = 0
     print("len(object_): ", len(object_))
     print("len(object_)/3: ", len(object_)/3)
     print("len(colors_): ", len(colors))
-    for i in range (int(len(object_)/3)):
-        obj_colored.append(object_[i*3])
-        obj_colored.append(object_[i*3+1])
-        obj_colored.append(object_[i*3+2])
-        obj_colored.append(colors[ind])
-        obj_colored.append(colors[ind+1])
-        obj_colored.append(colors[ind+2])
-        obj_colored.append(colors[ind+3])
-        obj_colored.append(colors[ind+4])
-        ind = ind+4
+    for i in range (int(len(object_)/8)):
+        final_obj.append(object_[i*8])
+        final_obj.append(object_[i*8+1])
+        final_obj.append(object_[i*8+2])
+        final_obj.append(object_[i*8+3])
+        final_obj.append(object_[i*8+4])
+        final_obj.append(object_[i*8+5])
+        final_obj.append(object_[i*8+6])
+        final_obj.append(object_[i*8+7])
         
-    object_np = np.array(obj_colored, dtype='float32')
+        final_obj.append(colors[ind])
+        final_obj.append(colors[ind+1])
+        final_obj.append(colors[ind+2])
+        ind = ind+3
+        
+    object_np = np.array(final_obj, dtype='float32')
 
     return object_np 
 
@@ -437,26 +416,14 @@ def initData(object_file, texture_file):
     gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
     
     # Set attributes.
-    if(not USE_COLORS):
-        gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, None)
-        gl.glEnableVertexAttribArray(0)
-        gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, c_void_p(3*vertices.itemsize))
-        gl.glEnableVertexAttribArray(1)
-        # texture coord attribute
-        gl.glVertexAttribPointer(2, 2, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, c_void_p(6*vertices.itemsize))
-        gl.glEnableVertexAttribArray(2)
-    else:
-        #gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, None)
-        #gl.glEnableVertexAttribArray(0)
-        #gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, c_void_p(3*vertices.itemsize))
-        #gl.glEnableVertexAttribArray(1)
-        gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, None)
-        gl.glEnableVertexAttribArray(0)
-        gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, c_void_p(3*vertices.itemsize))
-        gl.glEnableVertexAttribArray(1)
-        # texture coord attribute
-        gl.glVertexAttribPointer(2, 2, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, c_void_p(6*vertices.itemsize))
-        gl.glEnableVertexAttribArray(2)
+    gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, None)
+    gl.glEnableVertexAttribArray(0)
+    gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, c_void_p(3*vertices.itemsize))
+    gl.glEnableVertexAttribArray(1)
+    # texture coord attribute
+    gl.glVertexAttribPointer(2, 2, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, c_void_p(6*vertices.itemsize))
+    gl.glEnableVertexAttribArray(2)
+         
     
     # Unbind Vertex Array Object.
     gl.glBindVertexArray(0)
