@@ -106,7 +106,7 @@ vertex_code = """
 #version 330 core
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 normal;
-layout (location = 2) in vec2 texture;
+layout (location = 2) in vec3 texture;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -114,7 +114,7 @@ uniform mat4 projection;
 
 out vec3 vNormal;
 out vec3 fragPosition;
-out vec2 aTexture;
+out vec3 aTexture;
 
 void main()
 {
@@ -131,7 +131,7 @@ fragment_code = """
 
 in vec3 vNormal;
 in vec3 fragPosition;
-in vec2 aTexture;
+in vec3 aTexture;
 
 out vec4 fragColor;
 
@@ -140,7 +140,7 @@ uniform vec3 objectColor;
 uniform vec3 lightColor;
 uniform vec3 lightPosition;
 uniform vec3 cameraPosition;
-uniform sampler2D ourTexture;
+uniform samplerCube ourTexture;
 
 void main()
 {
@@ -174,11 +174,26 @@ void main()
 }
 """
 
-def read_texture(texture_file):
+def read_texture():
     global texture
 
-    img1 = Image.open(texture_file)
+    img1 = Image.open("./skybox/right.jpg")
     img_data1 = np.array(list(img1.getdata()), np.int8)
+    
+    img2 = Image.open("./skybox/left.jpg")
+    img_data2 = np.array(list(img2.getdata()), np.int8)
+    
+    img3 = Image.open("./skybox/top.jpg")
+    img_data3 = np.array(list(img3.getdata()), np.int8)
+    
+    img4 = Image.open("./skybox/bottom.jpg")
+    img_data4 = np.array(list(img4.getdata()), np.int8)
+    
+    img5 = Image.open("./skybox/front.jpg")
+    img_data5 = np.array(list(img5.getdata()), np.int8)
+    
+    img6 = Image.open("./skybox/back.jpg")
+    img_data6 = np.array(list(img6.getdata()), np.int8)
     
     texture = gl.glGenTextures(1)
     gl.glBindTexture(gl.GL_TEXTURE_CUBE_MAP, texture)
@@ -187,27 +202,24 @@ def read_texture(texture_file):
     # gl.glTexEnvf(gl.GL_TEXTURE_ENV, gl.GL_TEXTURE_ENV_MODE, gl.GL_DECAL)
 
     format = gl.GL_RGB #if img1.mode == "RGB" else gl.GL_RGBA   # if the texture is jpg or png
-    print(gl.glGetError())
+    
     gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, gl.GL_RGB, gl.GL_UNSIGNED_BYTE, img_data1)
-    gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data1)
-    gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data1)
-    gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data1)
-    gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data1)
-    gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data1)
+    gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data2)
+    gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data3)
+    gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data4)
+    gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data5)
+    gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data6)
     #gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
     
-    gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
+    #gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
     gl.glTexParameteri(gl.GL_TEXTURE_CUBE_MAP, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
     gl.glTexParameteri(gl.GL_TEXTURE_CUBE_MAP, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
     gl.glTexParameteri(gl.GL_TEXTURE_CUBE_MAP, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
     gl.glTexParameteri(gl.GL_TEXTURE_CUBE_MAP, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
     gl.glTexParameteri(gl.GL_TEXTURE_CUBE_MAP, gl.GL_TEXTURE_WRAP_R, gl.GL_CLAMP_TO_EDGE)
     
-    gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 3*skyboxVertices.itemsize, None)
-    gl.glEnableVertexAttribArray(2)
     
-
-def read_texture(texture_file):
+def read_texture1(texture_file):
     global texture
 
     img = Image.open(texture_file)
@@ -234,7 +246,7 @@ def display():
     gl.glClearColor(0.2, 0.3, 0.3, 1.0)
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
-    gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
+    gl.glBindTexture(gl.GL_TEXTURE_CUBE_MAP, texture)
 
     gl.glUseProgram(program)
     gl.glBindVertexArray(VAO)
@@ -421,10 +433,10 @@ def keyboard(key, x, y):
 
 ## Init data.
 def normalizeObj(obj, max_coord):
-    for i in range(int(len(obj)/8)):
-        obj[i*8] = obj[i*8] / max_coord
-        obj[i*8+1] = obj[i*8+1] / max_coord
-        obj[i*8+2] = obj[i*8+2] / max_coord
+    for i in range(int(len(obj)/9)):
+        obj[i*9] = obj[i*9] / max_coord
+        obj[i*9+1] = obj[i*9+1] / max_coord
+        obj[i*9+2] = obj[i*9+2] / max_coord
     return obj
     
 
@@ -523,8 +535,10 @@ def loadObject(object_file, texture_file):
             object_.append(n2)
             object_.append(n3)
             #texture
-            object_.append(random.random())
-            object_.append(random.random())
+            object_.append(n1)
+            object_.append(n2)
+            object_.append(n3)
+            
             max_coord = max(max_coord, x, y, z)
     
     object_ = normalizeObj(object_, int(max_coord))
@@ -550,22 +564,21 @@ def initData(object_file, texture_file):
     gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
     
     # Set attributes.
-    gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, None)
+    gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 9*vertices.itemsize, None)
     gl.glEnableVertexAttribArray(0)
-    gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, c_void_p(3*vertices.itemsize))
+    gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 9*vertices.itemsize, c_void_p(3*vertices.itemsize))
     gl.glEnableVertexAttribArray(1)
     # texture coord attribute
-    gl.glVertexAttribPointer(2, 3, gl.GL_FLOAT, gl.GL_FALSE, 8*vertices.itemsize, c_void_p(6*vertices.itemsize))
+    gl.glVertexAttribPointer(2, 3, gl.GL_FLOAT, gl.GL_FALSE, 9*vertices.itemsize, c_void_p(6*vertices.itemsize))
     gl.glEnableVertexAttribArray(2)
          
-    read_texture(texture_file)
+    read_texture()
     # Unbind Vertex Array Object.
     gl.glBindVertexArray(0)
     
     gl.glEnable(gl.GL_DEPTH_TEST)
     
     
-
 ## Create program (shaders).
 def initShaders():
     global program
