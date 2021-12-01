@@ -1,5 +1,5 @@
 ##########################################################
-################### TRABALHO 2 - CUBEMAP #################
+################## TRABALHO 2 - CUBEMAP ##################
 ############### MARIA EDUARDA REBELO PINHO ###############
 ##########################################################
 
@@ -56,51 +56,6 @@ modo = 0.0 # 0.0 - Nada, 1.0 - Iluminacao, 2.0 - Textura
 
 vertices = np.array([], dtype='float32')
 
-skyboxVertices= np.array([
-    # positions          
-    -1.0,  1.0, -1.0,
-    -1.0, -1.0, -1.0,
-     1.0, -1.0, -1.0,
-     1.0, -1.0, -1.0,
-     1.0,  1.0, -1.0,
-    -1.0,  1.0, -1.0,
-
-    -1.0, -1.0,  1.0,
-    -1.0, -1.0, -1.0,
-    -1.0,  1.0, -1.0,
-    -1.0,  1.0, -1.0,
-    -1.0,  1.0,  1.0,
-    -1.0, -1.0,  1.0,
-
-     1.0, -1.0, -1.0,
-     1.0, -1.0,  1.0,
-     1.0,  1.0,  1.0,
-     1.0,  1.0,  1.0,
-     1.0,  1.0, -1.0,
-     1.0, -1.0, -1.0,
-
-    -1.0, -1.0,  1.0,
-    -1.0,  1.0,  1.0,
-     1.0,  1.0,  1.0,
-     1.0,  1.0,  1.0,
-     1.0, -1.0,  1.0,
-    -1.0, -1.0,  1.0,
-
-    -1.0,  1.0, -1.0,
-     1.0,  1.0, -1.0,
-     1.0,  1.0,  1.0,
-     1.0,  1.0,  1.0,
-    -1.0,  1.0,  1.0,
-    -1.0,  1.0, -1.0,
-
-    -1.0, -1.0, -1.0,
-    -1.0, -1.0,  1.0,
-     1.0, -1.0, -1.0,
-     1.0, -1.0, -1.0,
-    -1.0, -1.0,  1.0,
-     1.0, -1.0,  1.0
-], dtype='float32')
-
 ## Vertex shader.
 vertex_code = """
 #version 330 core
@@ -121,7 +76,7 @@ void main()
     gl_Position = projection * view * model * vec4(position, 1.0);
     vNormal = mat3(transpose(inverse(model))) * normal;
     fragPosition = vec3(model * vec4(position, 1.0));
-    aTexture = texture;
+    aTexture = normal;
 }
 """
 
@@ -174,34 +129,31 @@ void main()
 }
 """
 
-def read_texture():
+def read_texture(texture_file):
     global texture
 
-    img1 = Image.open("./skybox/right.jpg")
+    img1 = Image.open(texture_file + "/right.jpg")
     img_data1 = np.array(list(img1.getdata()), np.int8)
     
-    img2 = Image.open("./skybox/left.jpg")
+    img2 = Image.open(texture_file + "/left.jpg")
     img_data2 = np.array(list(img2.getdata()), np.int8)
     
-    img3 = Image.open("./skybox/top.jpg")
+    img3 = Image.open(texture_file + "/top.jpg")
     img_data3 = np.array(list(img3.getdata()), np.int8)
     
-    img4 = Image.open("./skybox/bottom.jpg")
+    img4 = Image.open(texture_file + "/bottom.jpg")
     img_data4 = np.array(list(img4.getdata()), np.int8)
     
-    img5 = Image.open("./skybox/front.jpg")
+    img5 = Image.open(texture_file + "/front.jpg")
     img_data5 = np.array(list(img5.getdata()), np.int8)
     
-    img6 = Image.open("./skybox/back.jpg")
+    img6 = Image.open(texture_file + "/back.jpg")
     img_data6 = np.array(list(img6.getdata()), np.int8)
     
     texture = gl.glGenTextures(1)
     gl.glBindTexture(gl.GL_TEXTURE_CUBE_MAP, texture)
 
-
-    # gl.glTexEnvf(gl.GL_TEXTURE_ENV, gl.GL_TEXTURE_ENV_MODE, gl.GL_DECAL)
-
-    format = gl.GL_RGB #if img1.mode == "RGB" else gl.GL_RGBA   # if the texture is jpg or png
+    format = gl.GL_RGB if img1.mode == "RGB" else gl.GL_RGBA   # if the texture is jpg or png
     
     gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, gl.GL_RGB, gl.GL_UNSIGNED_BYTE, img_data1)
     gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data2)
@@ -209,36 +161,13 @@ def read_texture():
     gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data4)
     gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data5)
     gl.glTexImage2D(gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, gl.GL_RGB, img1.size[0], img1.size[1], 0, format, gl.GL_UNSIGNED_BYTE, img_data6)
-    #gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
     
-    #gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
     gl.glTexParameteri(gl.GL_TEXTURE_CUBE_MAP, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
     gl.glTexParameteri(gl.GL_TEXTURE_CUBE_MAP, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
     gl.glTexParameteri(gl.GL_TEXTURE_CUBE_MAP, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
     gl.glTexParameteri(gl.GL_TEXTURE_CUBE_MAP, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
     gl.glTexParameteri(gl.GL_TEXTURE_CUBE_MAP, gl.GL_TEXTURE_WRAP_R, gl.GL_CLAMP_TO_EDGE)
     
-    
-def read_texture1(texture_file):
-    global texture
-
-    img = Image.open(texture_file)
-    img_data = np.array(list(img.getdata()), np.int8)
-    texture = gl.glGenTextures(1)
-    gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
-
-    gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
-    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_BORDER)
-    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_BORDER)
-    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR_MIPMAP_LINEAR)
-    # gl.glTexEnvf(gl.GL_TEXTURE_ENV, gl.GL_TEXTURE_ENV_MODE, gl.GL_DECAL)
-
-    format = gl.GL_RGB if img.mode == "RGB" else gl.GL_RGBA   # if the texture is jpg or png
-    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGB, img.size[0], img.size[1], 0,
-                    format, gl.GL_UNSIGNED_BYTE, img_data)
-    gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
-
 ## Display function
 def display():
 
@@ -433,13 +362,12 @@ def keyboard(key, x, y):
 
 ## Init data.
 def normalizeObj(obj, max_coord):
-    for i in range(int(len(obj)/9)):
-        obj[i*9] = obj[i*9] / max_coord
-        obj[i*9+1] = obj[i*9+1] / max_coord
-        obj[i*9+2] = obj[i*9+2] / max_coord
+    for i in range(int(len(obj)/6)):
+        obj[i*6] = obj[i*6] / max_coord
+        obj[i*6+1] = obj[i*6+1] / max_coord
+        obj[i*6+2] = obj[i*6+2] / max_coord
     return obj
     
-
 def getNormalIndexes(object_file):
     faces = []
     normals = []
@@ -513,8 +441,7 @@ def loadObjectDefault():
     ], dtype='float32')
     return skyboxVertices
     
-
-def loadObject(object_file, texture_file):
+def loadObject(object_file):
     print("loading ", object_file)
     scene = pywavefront.Wavefront(object_file, create_materials=True, collect_faces=True)
     object_ = []
@@ -526,15 +453,10 @@ def loadObject(object_file, texture_file):
         for v_face, v_normal in zip(face, normal):
             n1, n2, n3 = scene.parser.normals[v_normal]
             x, y, z = scene.vertices[v_face]
-            
             object_.append(x)
             object_.append(y)
             object_.append(z)
             #normal
-            object_.append(n1)
-            object_.append(n2)
-            object_.append(n3)
-            #texture
             object_.append(n1)
             object_.append(n2)
             object_.append(n3)
@@ -552,7 +474,7 @@ def initData(object_file, texture_file):
     global VAO, VBO, vertices
 
     # Set vertices.
-    vertices = loadObject(object_file, texture_file) 
+    vertices = loadObject(object_file) 
     
     # Vertex array.
     VAO = gl.glGenVertexArrays(1)
@@ -564,15 +486,13 @@ def initData(object_file, texture_file):
     gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
     
     # Set attributes.
-    gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 9*vertices.itemsize, None)
+    gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, None)
     gl.glEnableVertexAttribArray(0)
-    gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 9*vertices.itemsize, c_void_p(3*vertices.itemsize))
+    # Set normals
+    gl.glVertexAttribPointer(1, 3, gl.GL_FLOAT, gl.GL_FALSE, 6*vertices.itemsize, c_void_p(3*vertices.itemsize))
     gl.glEnableVertexAttribArray(1)
-    # texture coord attribute
-    gl.glVertexAttribPointer(2, 3, gl.GL_FLOAT, gl.GL_FALSE, 9*vertices.itemsize, c_void_p(6*vertices.itemsize))
-    gl.glEnableVertexAttribArray(2)
          
-    read_texture()
+    read_texture(texture_file)
     # Unbind Vertex Array Object.
     gl.glBindVertexArray(0)
     
@@ -599,8 +519,9 @@ def main():
     object_file = sys.argv[1]
     print("object_file: ", object_file)
     
-    texture_file = sys.argv[2]
-    print("texture_file: ", texture_file)
+    if(sys.argv[2]):
+        texture_file = sys.argv[2]
+        print("texture_file: ", texture_file)
     
     initData(object_file, texture_file)
     
