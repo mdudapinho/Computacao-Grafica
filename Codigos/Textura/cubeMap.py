@@ -14,6 +14,7 @@ from PIL import Image
 from ctypes import c_void_p
 import pywavefront
 import random
+import math
 
 texture_file = None
 texture = None
@@ -61,7 +62,6 @@ vertex_code = """
 #version 330 core
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 normal;
-layout (location = 2) in vec3 texture;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -76,7 +76,7 @@ void main()
     gl_Position = projection * view * model * vec4(position, 1.0);
     vNormal = mat3(transpose(inverse(model))) * normal;
     fragPosition = vec3(model * vec4(position, 1.0));
-    aTexture = normal;
+    aTexture = normal;//vNormal;
 }
 """
 
@@ -361,98 +361,137 @@ def keyboard(key, x, y):
     glut.glutPostRedisplay()
 
 ## Init data.
-def normalizeObj(obj, max_coord):
+def normalizeObj(obj, max_coord, x_medio, y_medio, z_medio):
     for i in range(int(len(obj)/6)):
-        obj[i*6] = obj[i*6] / max_coord
-        obj[i*6+1] = obj[i*6+1] / max_coord
-        obj[i*6+2] = obj[i*6+2] / max_coord
+        obj[i*6] = (obj[i*6] - x_medio) / max_coord
+        obj[i*6+1] = (obj[i*6+1] - y_medio) / max_coord
+        obj[i*6+2] = (obj[i*6+2] - z_medio) / max_coord
     return obj
+
+def normalizeObjNew(obj, max_coord, x_medio, y_medio, z_medio):
+    for i in range(int(len(obj)/3)):
+        obj[i*3] = (obj[i*3] - x_medio) / max_coord
+        obj[i*3+1] = (obj[i*3+1] - y_medio) / max_coord
+        obj[i*3+2] = (obj[i*3+2] - z_medio) / max_coord
+    return obj
+
     
-def getNormalIndexes(object_file):
+def ortogonalProjection(verts):
+    for vertex in verts:
+        p = np.array([0, 0, 0])
+        n = np.array([0, 0, 1])
+        verts[vertex]['projected'] = (verts[vertex]['original'] - np.dot(verts[vertex]['original'] - p, n)*n)
+
+def sortVertices(verts):
+    x = []
+    y = []
+
+    for vertex in verts:
+        x.append(verts[vertex]['projected'][0])
+        y.append(verts[vertex]['projected'][1])
+    x0 = np.mean(x)
+    y0 = np.mean(y)
+
+    r = np.sqrt((x-x0)**2 + (y-y0)**2)
+    angles = np.where((y-y0) > 0, np.arccos((x-x0)/r), 2*np.pi-np.arccos((x-x0)/r))
+
+    for vertex, angle in zip(verts, angles):
+        verts[vertex]['angle'] = angle
+
+    sorted_angles = np.sort(angles)
+    sorted_vertices = []
+    for angle in sorted_angles:
+        for vertex in verts:
+            if verts[vertex]['angle'] == angle:
+                sorted_vertices.append(verts[vertex]['original'])
+
+    return sorted_vertices
+
+def generateNormals(scene, face_indexes):
+    normals = []
+    for face in face_indexes:
+        verts = {'p1': {'original': list(scene.vertices[face[0]])},
+                 'p2': {'original': list(scene.vertices[face[1]])},
+                 'p3': {'original': list(scene.vertices[face[2]])}}
+
+        ortogonalProjection(verts)
+        sorted_verts = sortVertices(verts)
+        normals.append(np.cross(np.array(sorted_verts[1]) - np.array(sorted_verts[0]),
+                                np.array(sorted_verts[2]) - np.array(sorted_verts[0])))
+    return normals        
+        
+def getIndexes(object_file, generate_normals=False):
     faces = []
     normals = []
     with open(object_file) as f:
         lines = f.readlines()
-        for line in lines:
-            if line[0] == 'f':
-                space_split = line.split(' ')
+        if generate_normals:
+            normal_count = 0
+            for line in lines:
+                if line[0] == 'f':
+                    space_split = line.split(' ')
 
-                faces.append([int(space_split[1].split('/')[0]) - 1,
-                              int(space_split[2].split('/')[0]) - 1,
-                              int(space_split[3].split('/')[0]) - 1])
-                
-                normals.append([int(space_split[1].split('/')[2]) - 1,
-                                int(space_split[2].split('/')[2]) - 1,
-                                int(space_split[3].split('/')[2]) - 1])
+                    faces.append([int(space_split[1]) - 1,
+                                  int(space_split[2]) - 1,
+                                  int(space_split[3]) - 1])
 
-                if len(space_split) == 5:
+                    normals.append([normal_count, normal_count, normal_count])
+                    normal_count += 1
+
+                    if len(space_split) == 5:
+                        faces.append([int(space_split[1].split('/')[0]) - 1,
+                                      int(space_split[3].split('/')[0]) - 1,
+                                      int(space_split[4].split('/')[0]) - 1])
+
+                        normals.append([normal_count, normal_count, normal_count])
+                        normal_count += 1
+        else:
+            for line in lines:
+                if line[0] == 'f':
+                    space_split = line.split(' ')
+
                     faces.append([int(space_split[1].split('/')[0]) - 1,
-                                  int(space_split[3].split('/')[0]) - 1,
-                                  int(space_split[4].split('/')[0]) - 1])
-
+                                  int(space_split[2].split('/')[0]) - 1,
+                                  int(space_split[3].split('/')[0]) - 1])
+                    
                     normals.append([int(space_split[1].split('/')[2]) - 1,
-                                    int(space_split[3].split('/')[2]) - 1,
-                                    int(space_split[4].split('/')[2]) - 1])
-    return faces, normals
+                                    int(space_split[2].split('/')[2]) - 1,
+                                    int(space_split[3].split('/')[2]) - 1])
 
-def loadObjectDefault():
-    skyboxVertices= np.array([
-        -0.5, -0.5, -0.5,  0.0,  0.0, -1.0, -1.0,  1.0, -1.0,
-         0.5, -0.5, -0.5,  0.0,  0.0, -1.0, -1.0, -1.0, -1.0,
-         0.5,  0.5, -0.5,  0.0,  0.0, -1.0, 1.0, -1.0, -1.0,
-         0.5,  0.5, -0.5,  0.0,  0.0, -1.0, 1.0, -1.0, -1.0,
-        -0.5,  0.5, -0.5,  0.0,  0.0, -1.0, 1.0,  1.0, -1.0,
-        -0.5, -0.5, -0.5,  0.0,  0.0, -1.0, -1.0,  1.0, -1.0,
+                    if len(space_split) == 5:
+                        faces.append([int(space_split[1].split('/')[0]) - 1,
+                                      int(space_split[3].split('/')[0]) - 1,
+                                      int(space_split[4].split('/')[0]) - 1])
 
-        -0.5, -0.5,  0.5,  0.0,  0.0, 1.0, -1.0, -1.0,  1.0,
-         0.5, -0.5,  0.5,  0.0,  0.0, 1.0,    -1.0, -1.0, -1.0,
-         0.5,  0.5,  0.5,  0.0,  0.0, 1.0,    -1.0,  1.0, -1.0,
-         0.5,  0.5,  0.5,  0.0,  0.0, 1.0,    -1.0,  1.0, -1.0,
-        -0.5,  0.5,  0.5,  0.0,  0.0, 1.0,    -1.0,  1.0,  1.0,
-        -0.5, -0.5,  0.5,  0.0,  0.0, 1.0,    -1.0, -1.0,  1.0,
+                        normals.append([int(space_split[1].split('/')[2]) - 1,
+                                        int(space_split[3].split('/')[2]) - 1,
+                                        int(space_split[4].split('/')[2]) - 1])
+    return faces#, normals
 
-        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,-1.0, -1.0,  1.0,
-        -0.5,  0.5, -0.5, -1.0,  0.0,  0.0,    -1.0, -1.0, -1.0,
-        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,    -1.0,  1.0, -1.0,
-        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,    -1.0,  1.0, -1.0,
-        -0.5, -0.5,  0.5, -1.0,  0.0,  0.0,    -1.0,  1.0,  1.0,
-        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,    -1.0, -1.0,  1.0,
-
-         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,1.0, -1.0, -1.0,
-         0.5,  0.5, -0.5,  1.0,  0.0,  0.0,     1.0, -1.0,  1.0,
-         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,     1.0,  1.0,  1.0,
-         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,     1.0,  1.0,  1.0,
-         0.5, -0.5,  0.5,  1.0,  0.0,  0.0,     1.0,  1.0, -1.0,
-         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,     1.0, -1.0, -1.0,
-
-        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,    -1.0, -1.0,  1.0,
-         0.5, -0.5, -0.5,  0.0, -1.0,  0.0,    -1.0,  1.0,  1.0,
-         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,     1.0,  1.0,  1.0,
-         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,     1.0,  1.0,  1.0,
-        -0.5, -0.5,  0.5,  0.0, -1.0,  0.0,     1.0, -1.0,  1.0,
-        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,    -1.0, -1.0,  1.0,
-
-        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0,    -1.0,  1.0, -1.0,
-         0.5,  0.5, -0.5,  0.0,  1.0,  0.0,     1.0,  1.0, -1.0,
-         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,     1.0,  1.0,  1.0,
-         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,     1.0,  1.0,  1.0,
-        -0.5,  0.5,  0.5,  0.0,  1.0,  0.0,    -1.0,  1.0,  1.0,
-        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0,    -1.0,  1.0, -1.0
-    ], dtype='float32')
-    return skyboxVertices
-    
-def loadObject(object_file):
+def loadObjectDef(object_file):
     print("loading ", object_file)
     scene = pywavefront.Wavefront(object_file, create_materials=True, collect_faces=True)
     object_ = []
     max_coord = 0
+    x_max = scene.vertices[0][0]
+    x_min = scene.vertices[0][0]
+    y_max = scene.vertices[0][1]
+    y_min = scene.vertices[0][1]
+    z_max = scene.vertices[0][2]
+    z_min = scene.vertices[0][2]
        
-    face_indexes, normal_indexes = getNormalIndexes(object_file)
+    normals = []
+    if scene.parser.normals != []:
+        face_indexes, normal_indexes = getIndexes(object_file)
+        normals = scene.parser.normals
+    else:
+        face_indexes, normal_indexes = getIndexes(object_file, generate_normals=True)
+        normals = generateNormals(scene, face_indexes)  
     
     for face, normal in zip(face_indexes, normal_indexes):
         for v_face, v_normal in zip(face, normal):
-            n1, n2, n3 = scene.parser.normals[v_normal]
-            x, y, z = scene.vertices[v_face]
+            x, y, z = scene.vertices[v_face]    
+            n1, n2, n3 = normals[v_normal]
             object_.append(x)
             object_.append(y)
             object_.append(z)
@@ -462,11 +501,115 @@ def loadObject(object_file):
             object_.append(n3)
             
             max_coord = max(max_coord, x, y, z)
-    
-    object_ = normalizeObj(object_, int(max_coord))
+            x_max = max(x_max, x)
+            x_min = min(x_min, x)
+            y_max = max(y_max, y)
+            y_min = min(y_min, y)
+            z_max = max(z_max, z)
+            z_min = min(z_min, z)
+            
+    x_medio = (x_max + x_min)/2
+    y_medio = (y_max + y_min)/2
+    z_medio = (z_max + z_min)/2
+    object_ = normalizeObj(object_, max_coord, x_medio, y_medio, z_medio)
     
     return np.array(object_, dtype='float32')  
     
+def loadObjectMatias(object_file):
+    print("loading ", object_file)
+    scene = pywavefront.Wavefront(object_file, create_materials=True, collect_faces=True)
+    object_ = []
+    max_coord = 0
+    x_max = scene.vertices[0][0]
+    x_min = scene.vertices[0][0]
+    y_max = scene.vertices[0][1]
+    y_min = scene.vertices[0][1]
+    z_max = scene.vertices[0][2]
+    z_min = scene.vertices[0][2]
+       
+    if scene.parser.normals != []:
+        face_indexes = getIndexes(object_file)
+    else:
+        face_indexes = getIndexes(object_file, generate_normals=True)
+    
+    for mesh in scene.mesh_list:
+        for face in mesh.faces:
+            
+            for vertex_i in face:
+                x, y, z = scene.vertices[vertex_i]
+                object_.append(x)
+                object_.append(y)
+                object_.append(z)
+                
+                max_coord = max(max_coord, x, y, z)
+            
+                x_max = max(x_max, x)
+                x_min = min(x_min, x)
+                y_max = max(y_max, y)
+                y_min = min(y_min, y)
+                z_max = max(z_max, z)
+                z_min = min(z_min, z)
+            
+    x_medio = (x_max + x_min)/2
+    y_medio = (y_max + y_min)/2
+    z_medio = (z_max + z_min)/2
+    object_ = normalizeObj(object_, max_coord, x_medio, y_medio, z_medio)
+    
+    return np.array(object_, dtype='float32') 
+
+def loadObject(object_file):
+    print("loading ", object_file)
+    scene = pywavefront.Wavefront(object_file, create_materials=True, collect_faces=True)
+    object_ = []
+    max_coord = 0
+    x_max = scene.vertices[0][0]
+    x_min = scene.vertices[0][0]
+    y_max = scene.vertices[0][1]
+    y_min = scene.vertices[0][1]
+    z_max = scene.vertices[0][2]
+    z_min = scene.vertices[0][2]
+       
+    normals = []
+    if scene.parser.normals != []:
+        face_indexes = getIndexes(object_file)
+        normals = scene.parser.normals
+    else:
+        face_indexes = getIndexes(object_file, generate_normals=True)
+        normals = generateNormals(scene, face_indexes)  
+    
+    for face in face_indexes:
+        for v_face in face:
+            x, y, z = scene.vertices[v_face]    
+            object_.append(x)
+            object_.append(y)
+            object_.append(z)
+            
+            x_max = max(x_max, x)
+            x_min = min(x_min, x)
+            y_max = max(y_max, y)
+            y_min = min(y_min, y)
+            z_max = max(z_max, z)
+            z_min = min(z_min, z)
+            
+    x_medio = (x_max + x_min)/2
+    y_medio = (y_max + y_min)/2
+    z_medio = (z_max + z_min)/2
+    
+    max_coord = max(abs(x_max - x_min), abs(y_max - y_min), abs(z_max - z_min))
+    object_ = normalizeObjNew(object_, max_coord, x_medio, y_medio, z_medio)
+    
+    final_obj = []
+    
+    for i in range(int(len(object_)/3)):
+        final_obj.append(object_[i*3])
+        final_obj.append(object_[i*3+1])
+        final_obj.append(object_[i*3+2])
+        final_obj.append(object_[i*3])
+        final_obj.append(object_[i*3+1])
+        final_obj.append(object_[i*3+2])
+        
+    return np.array(final_obj, dtype='float32')  
+
 
 def initData(object_file, texture_file):
 
